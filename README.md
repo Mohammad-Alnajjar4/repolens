@@ -1,7 +1,7 @@
 # RepoLens: Automated Static Code Quality & Complexity Analyzer
 
-## Project Description
-Static analysis web application for Python code complexity and hardcoded secret detection.
-
-## Current Status
-Week 1-2: Project definition, requirements, and repository setup.
+**Course:** Software Engineering Graduation Project (2026–2027)  
+**Department:** Software Engineering, Altınbaş University  
+**Instructor:** Dr. F. Kuzey Edes Huyal  
+**Student:** Mohammed Alnajjar  
+**Repository:** https://github.com/Mohammad-Alnajjar4/repolens  
