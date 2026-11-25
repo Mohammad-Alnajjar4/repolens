@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RepoLens — Static Code Quality & Complexity Analyzer</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; background: #f8fafc; color: #0f172a; }
+    .card { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; }
+    textarea, input[type="text"] { width: 100%; box-sizing: border-box; padding: 0.6rem; border: 1px solid #94a3b8; border-radius: 6px; font-family: monospace; margin-top: 0.4rem; }
+    button { background: #1d4ed8; color: #fff; border: none; padding: 0.6rem 1.1rem; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 0.75rem; }
+    button.danger { background: #dc2626; padding: 0.3rem 0.6rem; margin-top: 0; font-size: 0.85rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; }
+    th, td { border: 1px solid #e2e8f0; padding: 0.55rem; text-align: left; }
+    th { background: #f1f5f9; }
+    .error { background: #fee2e2; color: #991b1b; padding: 0.75rem; border-radius: 6px; display: none; margin-bottom: 1rem; }
+    .warn { color: #b45309; font-weight: 600; background: #fef3c7; padding: 0.5rem; border-radius: 4px; margin-top: 0.4rem; }
+  </style>
+</head>
+<body>
+  <h1>RepoLens: Python Static Code Quality Analyzer</h1>
+  <p>Altınbaş University Software Engineering Graduation Project — Mohammed Alnajjar</p>
+  <div id="errorBox" class="error"></div>
+  <div class="card">
+    <h3>1. Analyze Python Code Snippet</h3>
+    <input id="filenameInput" type="text" value="order_processor.py" />
+    <textarea id="codeInput" rows="8">def process_order(amount, is_vip):
+    API_KEY = "sk-live-secret-998877"
+    if amount <= 0:
+        return "Invalid"
+    if is_vip and amount > 100:
+        return "VIP Discount"
+    return "Standard"</textarea>
+    <button onclick="analyzeSnippet()">Analyze Code</button>
+  </div>
+  <div class="card">
+    <h3>2. Analyze Public GitHub Repository or File URL</h3>
+    <input id="githubUrlInput" type="text" placeholder="https://github.com/psf/requests/blob/main/src/requests/models.py" />
+    <button onclick="analyzeGithub()">Fetch & Analyze GitHub</button>
+  </div>
+  <div class="card" id="resultCard" style="display:none;">
+    <h3>Latest Analysis Report</h3>
+    <div id="summaryText"></div>
+    <table><thead><tr><th>Function</th><th>Line</th><th>Complexity</th><th>Rating</th></tr></thead><tbody id="funcTableBody"></tbody></table>
+    <div id="warningsBox" style="margin-top:0.8rem;"></div>
+  </div>
+  <div class="card">
+    <h3>Saved Scan History (SQLite)</h3>
+    <table><thead><tr><th>ID</th><th>File</th><th>Source</th><th>LOC</th><th>Avg Complexity</th><th>Warnings</th><th>Action</th></tr></thead><tbody id="historyBody"></tbody></table>
+  </div>
+  <script>
+    function showError(msg) { const b = document.getElementById("errorBox"); b.textContent = msg; b.style.display = msg ? "block" : "none"; }
+    function renderReport(data) {
+      document.getElementById("resultCard").style.display = "block";
+      document.getElementById("summaryText").innerHTML = `<strong>File:</strong> ${data.filename} | <strong>LOC:</strong> ${data.total_loc} | <strong>Avg Complexity:</strong> ${data.average_complexity} | <strong>Max:</strong> ${data.max_complexity}`;
+      document.getElementById("funcTableBody").innerHTML = data.functions.map(f => `<tr><td>${f.name}</td><td>${f.lineno}</td><td>${f.complexity}</td><td>${f.rating}</td></tr>`).join("") || "<tr><td colspan='4'>No top-level functions.</td></tr>";
+      document.getElementById("warningsBox").innerHTML = data.warnings.length ? data.warnings.map(w => `<div class="warn">Line ${w.lineno}: ${w.message}</div>`).join("") : "<div>No hardcoded credential warnings detected.</div>";
+    }
+    async function analyzeSnippet() {
+      showError("");
+      const res = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: document.getElementById("filenameInput").value, source_code: document.getElementById("codeInput").value }) });
+      const data = await res.json();
+      if (!res.ok) return showError(data.detail || "Analysis failed.");
+      renderReport(data); loadHistory();
+    }
+    async function analyzeGithub() {
+      showError("");
+      const res = await fetch("/api/analyze-github", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ repo_url: document.getElementById("githubUrlInput").value }) });
+      const data = await res.json();
+      if (!res.ok) return showError(data.detail || "GitHub fetch failed.");
+      if (data.reports && data.reports.length) renderReport(data.reports[0]);
+      loadHistory();
+    }
+    async function loadHistory() {
+      const res = await fetch("/api/scans"); const data = await res.json();
+      document.getElementById("historyBody").innerHTML = data.scans.map(s => `<tr><td>${s.id}</td><td>${s.filename}</td><td>${s.source_type}</td><td>${s.total_loc}</td><td>${s.average_complexity}</td><td>${s.warning_count}</td><td><button class="danger" onclick="deleteScan(${s.id})">Delete</button></td></tr>`).join("");
+    }
+    async function deleteScan(id) { await fetch(`/api/scans/${id}`, { method: "DELETE" }); loadHistory(); }
+    loadHistory();
+  </script>
+</body>
+</html>
